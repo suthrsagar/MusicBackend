@@ -9,16 +9,31 @@ let firebaseInitialized = false;
 if (fs.existsSync(serviceAccountPath)) {
     try {
         const serviceAccount = require(serviceAccountPath);
-        admin.initializeApp({
-            credential: admin.credential.cert(serviceAccount)
-        });
+        if (!admin.apps.length) {
+            admin.initializeApp({
+                credential: admin.credential.cert(serviceAccount)
+            });
+        }
         firebaseInitialized = true;
-        console.log("Firebase Admin Initialized");
+        console.log("Firebase Admin Initialized (via File)");
     } catch (error) {
         console.error("Firebase Admin Init Failed:", error);
     }
+} else if (process.env.FIREBASE_SERVICE_ACCOUNT) {
+    try {
+        const serviceAccount = JSON.parse(process.env.FIREBASE_SERVICE_ACCOUNT);
+        if (!admin.apps.length) {
+            admin.initializeApp({
+                credential: admin.credential.cert(serviceAccount)
+            });
+        }
+        firebaseInitialized = true;
+        console.log("Firebase Admin Initialized (via Env Var)");
+    } catch (error) {
+        console.error("Firebase Admin Init Failed from Env Var:", error);
+    }
 } else {
-    console.warn("WARNING: serviceAccountKey.json not found in backend folder. Notifications will not work.");
+    console.warn("WARNING: serviceAccountKey.json not found and FIREBASE_SERVICE_ACCOUNT env var missing. Notifications will not work.");
 }
 
 const sendNotificationToTopic = async (topic, title, body, data = {}) => {
