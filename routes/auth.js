@@ -89,6 +89,10 @@ router.post('/login', async (req, res) => {
             console.warn(`User ${email} has no passwordHash. Deletion recommended.`);
         }
 
+        if (user.isBanned) {
+            return res.status(403).json({ msg: 'Your account has been banned. Contact admin.' });
+        }
+
         // Validate Password
         const isMatch = await user.comparePassword(password);
         if (!isMatch) {
@@ -114,7 +118,9 @@ router.post('/login', async (req, res) => {
                     user: {
                         id: user.id,
                         username: user.username,
-                        email: user.email
+                        email: user.email,
+                        role: user.role,
+                        isBanned: user.isBanned
                     }
                 });
             }

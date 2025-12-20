@@ -24,6 +24,7 @@ mongoose.connect(MONGO_URI)
 // Routes
 app.use('/api', require('./routes/auth'));
 app.use('/api/song', require('./routes/song'));
+app.use('/api/admin', require('./routes/admin'));
 
 
 // Simple root route
