@@ -15,7 +15,21 @@ app.use('/uploads', express.static('uploads')); // Make uploads folder public
 const MONGO_URI = process.env.MONGO_URI || 'mongodb://localhost:27017/auth_db';
 
 mongoose.connect(MONGO_URI)
-    .then(() => console.log('MongoDB Connected...'))
+    .then(async () => {
+        console.log('MongoDB Connected...');
+
+        // MIGRATION: Fix 'views' field type from Number to Array if needed
+        try {
+            const result = await mongoose.connection.db.collection('songs').updateMany(
+                { views: { $type: "number" } },
+                { $set: { views: [] } }
+            );
+            if (result.modifiedCount > 0) {
+                console.log(`Migrated ${result.modifiedCount} songs to new views schema.`);
+            }
+        } catch (e) { console.log('Migration check failed', e); }
+
+    })
     .catch(err => {
         console.error('MongoDB connection error:', err);
         process.exit(1);
@@ -25,6 +39,9 @@ mongoose.connect(MONGO_URI)
 app.use('/api', require('./routes/auth'));
 app.use('/api/song', require('./routes/song'));
 app.use('/api/admin', require('./routes/admin'));
+app.use('/api/notifications', require('./routes/notification'));
+app.use('/api/payment', require('./routes/payment'));
+app.use('/api/playlist', require('./routes/playlist'));
 
 
 // Simple root route

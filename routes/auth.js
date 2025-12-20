@@ -3,8 +3,9 @@ const router = express.Router();
 const jwt = require('jsonwebtoken');
 const User = require('../models/User');
 const auth = require('../middleware/authMiddleware');
+const bcrypt = require('bcryptjs'); // Needed for password comparison/hashing
 
-// @route   POST /api/auth/register
+// @route   POST /api/register
 // @desc    Register user
 // @access  Public
 router.post('/register', async (req, res) => {
@@ -66,7 +67,7 @@ router.post('/register', async (req, res) => {
     }
 });
 
-// @route   POST /api/auth/login
+// @route   POST /api/login
 // @desc    Authenticate user & get token
 // @access  Public
 router.post('/login', async (req, res) => {
@@ -79,14 +80,9 @@ router.post('/login', async (req, res) => {
 
     try {
         // Check for user
-        // Check for user
         const user = await User.findOne({ email });
         if (!user) {
             return res.status(400).json({ msg: 'Invalid credentials' });
-        }
-
-        if (!user.passwordHash) {
-            console.warn(`User ${email} has no passwordHash. Deletion recommended.`);
         }
 
         if (user.isBanned) {
@@ -148,6 +144,41 @@ router.get('/profile', auth, async (req, res) => {
         res.status(500).send('Server Error');
     }
 });
+
+// @route   PUT /api/profile/update
+// @desc    Update user profile (username, password)
+// @access  Private
+router.put('/profile/update', auth, async (req, res) => {
+    const { username, oldPassword, newPassword } = req.body;
+
+    try {
+        const user = await User.findById(req.user.id);
+        if (!user) return res.status(404).json({ msg: 'User not found' });
+
+        // Update Username
+        if (username) user.username = username;
+
+        // Update Password
+        if (newPassword) {
+            if (!oldPassword) {
+                return res.status(400).json({ msg: 'Please provide old password to set a new one.' });
+            }
+            const isMatch = await user.comparePassword(oldPassword);
+            if (!isMatch) {
+                return res.status(400).json({ msg: 'Invalid old password' });
+            }
+            user.passwordHash = newPassword; // Pre-save hook will hash this
+        }
+
+        await user.save();
+        res.json({ msg: 'Profile updated successfully', user: { username: user.username, email: user.email } });
+
+    } catch (err) {
+        console.error(err.message);
+        res.status(500).send('Server Error');
+    }
+});
+
 
 // @route   POST /api/profile/photo
 // @desc    Upload profile photo

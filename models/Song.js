@@ -31,8 +31,16 @@ const songSchema = new mongoose.Schema({
     status: {
         type: String,
         enum: ['pending', 'approved', 'rejected'],
-        default: 'pending' // Default status is pending
-    }
+        default: 'pending'
+    },
+    likes: [{
+        type: mongoose.Schema.Types.ObjectId,
+        ref: 'User'
+    }],
+    views: [{
+        type: mongoose.Schema.Types.ObjectId,
+        ref: 'User'
+    }]
 });
 
 module.exports = mongoose.model('Song', songSchema);

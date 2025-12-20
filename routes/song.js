@@ -86,6 +86,67 @@ router.get('/', async (req, res) => {
     }
 });
 
+// @route   PUT /api/song/like/:id
+// @desc    Like or Unlike a song
+// @access  Private
+router.put('/like/:id', auth, async (req, res) => {
+    try {
+        const song = await Song.findById(req.params.id);
+        if (!song) return res.status(404).json({ msg: 'Song not found' });
+
+        // Check if already liked
+        if (song.likes.includes(req.user.id)) {
+            // Unlike: Remove user id from likes array
+            song.likes = song.likes.filter(userId => userId.toString() !== req.user.id);
+        } else {
+            // Like: Add user id to likes array
+            song.likes.push(req.user.id);
+        }
+
+        await song.save();
+        res.json({ likes: song.likes, msg: 'Success' });
+    } catch (err) {
+        console.error(err.message);
+        res.status(500).send('Server Error');
+    }
+});
+
+// @route   POST /api/song/view/:id
+// @desc    Record a unique view (listener)
+// @access  Private
+router.post('/view/:id', auth, async (req, res) => {
+    try {
+        const song = await Song.findById(req.params.id);
+        if (!song) return res.status(404).json({ msg: 'Song not found' });
+
+        // Add user to views array if not already present (Unique Listeners)
+        if (!song.views.includes(req.user.id)) {
+            song.views.push(req.user.id);
+            await song.save();
+        }
+
+        res.json({ views: song.views.length });
+    } catch (err) {
+        console.error(err.message);
+        res.status(500).send('Server Error');
+    }
+});
+
+// @route   GET /api/song/:id
+// @desc    Get song by ID
+// @access  Public
+router.get('/:id', async (req, res) => {
+    try {
+        const song = await Song.findById(req.params.id);
+        if (!song) return res.status(404).json({ msg: 'Song not found' });
+        res.json(song);
+    } catch (err) {
+        console.error(err.message);
+        if (err.kind === 'ObjectId') return res.status(404).json({ msg: 'Song not found' });
+        res.status(500).send('Server Error');
+    }
+});
+
 // @route   GET /api/song/stream/:fileId
 // @desc    Stream song by GridFS fileId
 // @access  Public
@@ -113,14 +174,15 @@ router.get('/stream/:fileId', async (req, res) => {
         res.set('Accept-Ranges', 'bytes');
 
         downloadStream.on('error', (err) => {
-            res.status(404).json({ msg: 'Error streaming file' });
+            // Only send header if not sent
+            if (!res.headersSent) res.status(404).json({ msg: 'Error streaming file' });
         });
 
         downloadStream.pipe(res);
 
     } catch (err) {
         console.error(err.message);
-        res.status(400).json({ msg: 'Invalid File ID' });
+        if (!res.headersSent) res.status(400).json({ msg: 'Invalid File ID' });
     }
 });
 
