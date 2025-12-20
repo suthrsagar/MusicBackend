@@ -42,6 +42,8 @@ app.use('/api/admin', require('./routes/admin'));
 app.use('/api/notifications', require('./routes/notification'));
 app.use('/api/payment', require('./routes/payment'));
 app.use('/api/playlist', require('./routes/playlist'));
+app.use('/api/monetization', require('./routes/monetization'));
+app.use('/api/analytics', require('./routes/analytics'));
 
 
 // Simple root route

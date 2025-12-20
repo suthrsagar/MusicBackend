@@ -47,9 +47,13 @@ router.post('/register', async (req, res) => {
         jwt.sign(
             payload,
             process.env.JWT_SECRET,
-            { expiresIn: '1h' }, // Token expires in 1 hour
-            (err, token) => {
+            { expiresIn: '7d' }, // Increased to 7 days for better UX
+            async (err, token) => {
                 if (err) throw err;
+
+                // Save this as the active session token
+                await User.findByIdAndUpdate(user.id, { currentSessionToken: token });
+
                 res.status(201).json({
                     token,
                     user: {
@@ -106,9 +110,13 @@ router.post('/login', async (req, res) => {
         jwt.sign(
             payload,
             process.env.JWT_SECRET,
-            { expiresIn: '1h' },
-            (err, token) => {
+            { expiresIn: '7d' }, // Increased to 7 days
+            async (err, token) => {
                 if (err) throw err;
+
+                // Save this as the active session token
+                await User.findByIdAndUpdate(user.id, { currentSessionToken: token });
+
                 res.json({
                     token,
                     user: {

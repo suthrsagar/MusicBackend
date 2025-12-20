@@ -43,6 +43,25 @@ const UserSchema = new mongoose.Schema({
     createdAt: {
         type: Date,
         default: Date.now
+    },
+    // Monetization Fields
+    walletBalance: {
+        type: Number,
+        default: 0 // Earnings from streams
+    },
+    totalStreams: {
+        type: Number,
+        default: 0 // Total streams of uploaded songs
+    },
+    subscription: {
+        planId: { type: mongoose.Schema.Types.ObjectId, ref: 'SubscriptionPlan' },
+        startDate: { type: Date },
+        expiryDate: { type: Date },
+        isActive: { type: Boolean, default: false }
+    },
+    currentSessionToken: {
+        type: String,
+        default: ''
     }
 });
 

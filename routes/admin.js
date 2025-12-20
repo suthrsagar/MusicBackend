@@ -5,6 +5,7 @@ const User = require('../models/User');
 const Song = require('../models/Song');
 const auth = require('../middleware/authMiddleware');
 const admin = require('../middleware/adminMiddleware');
+const { sendNotificationToTopic } = require('../config/firebase');
 
 // @route   GET /api/admin/stats
 // @desc    Get dashboard stats
@@ -85,6 +86,10 @@ router.put('/songs/:id/approve', [auth, admin], async (req, res) => {
 
         song.status = 'approved';
         await song.save();
+
+        if (sendNotificationToTopic) {
+            sendNotificationToTopic('all_users', 'New Song Added!', `Check out ${song.title} by ${song.artist}`, { songId: song._id.toString() });
+        }
 
         res.json({ msg: 'Song approved', song });
     } catch (err) {
