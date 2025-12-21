@@ -1,40 +1,36 @@
 const multer = require('multer');
+const { GridFsStorage } = require('multer-gridfs-storage');
 const path = require('path');
+require('dotenv').config();
 
-// Set storage engine
-const storage = multer.diskStorage({
-    destination: function (req, file, cb) {
-        cb(null, 'uploads/');
-    },
-    filename: function (req, file, cb) {
-        // Generate unique filename: fieldname-timestamp.extension
-        cb(null, file.fieldname + '-' + Date.now() + path.extname(file.originalname));
+const MONGO_URI = process.env.MONGO_URI || 'mongodb://localhost:27017/auth_db';
+
+// Create GridFS storage engine for images
+const storage = new GridFsStorage({
+    url: MONGO_URI,
+    file: (req, file) => {
+        return new Promise((resolve, reject) => {
+            const filetypes = /jpeg|jpg|png|webp/;
+            const extname = filetypes.test(path.extname(file.originalname).toLowerCase());
+            const mimetype = filetypes.test(file.mimetype);
+
+            if (!mimetype || !extname) {
+                return reject(new Error('Error: Images Only (jpeg, jpg, png, webp)!'));
+            }
+
+            const filename = 'avatar-' + Date.now() + path.extname(file.originalname);
+            const fileInfo = {
+                filename: filename,
+                bucketName: 'avatars' // Specific bucket for profile photos
+            };
+            resolve(fileInfo);
+        });
     }
 });
 
-// Check file type
-function checkFileType(file, cb) {
-    // Allowed ext
-    const filetypes = /jpeg|jpg|png/;
-    // Check ext
-    const extname = filetypes.test(path.extname(file.originalname).toLowerCase());
-    // Check mime
-    const mimetype = filetypes.test(file.mimetype);
-
-    if (mimetype && extname) {
-        return cb(null, true);
-    } else {
-        cb(new Error('Error: Images Only (jpeg, jpg, png)!'));
-    }
-}
-
-// Init Upload
 const upload = multer({
     storage: storage,
     limits: { fileSize: 5000000 }, // 5MB limit
-    fileFilter: function (req, file, cb) {
-        checkFileType(file, cb);
-    }
 });
 
 module.exports = upload;
