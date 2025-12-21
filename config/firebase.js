@@ -15,7 +15,9 @@ if (fs.existsSync(serviceAccountPath)) {
             });
         }
         firebaseInitialized = true;
+        console.log('✅ Firebase Initialized using local serviceAccountKey.json');
     } catch (error) {
+        console.error('❌ Firebase initialization error (local file):', error.message);
     }
 } else if (process.env.FIREBASE_SERVICE_ACCOUNT) {
     try {
@@ -26,8 +28,12 @@ if (fs.existsSync(serviceAccountPath)) {
             });
         }
         firebaseInitialized = true;
+        console.log('✅ Firebase Initialized using Environment Variable');
     } catch (error) {
+        console.error('❌ Firebase initialization error (Env Var): Check if JSON is valid. Error:', error.message);
     }
+} else {
+    console.warn('⚠️ Firebase NOT initialized: Neither serviceAccountKey.json nor FIREBASE_SERVICE_ACCOUNT env var found.');
 }
 
 const sendNotificationToTopic = async (topic, title, body, data = {}) => {
