@@ -15,9 +15,7 @@ if (fs.existsSync(serviceAccountPath)) {
             });
         }
         firebaseInitialized = true;
-        console.log("Firebase Admin Initialized (via File)");
     } catch (error) {
-        console.error("Firebase Admin Init Failed:", error);
     }
 } else if (process.env.FIREBASE_SERVICE_ACCOUNT) {
     try {
@@ -28,12 +26,8 @@ if (fs.existsSync(serviceAccountPath)) {
             });
         }
         firebaseInitialized = true;
-        console.log("Firebase Admin Initialized (via Env Var)");
     } catch (error) {
-        console.error("Firebase Admin Init Failed from Env Var:", error);
     }
-} else {
-    console.warn("WARNING: serviceAccountKey.json not found and FIREBASE_SERVICE_ACCOUNT env var missing. Notifications will not work.");
 }
 
 const sendNotificationToTopic = async (topic, title, body, data = {}) => {
@@ -45,13 +39,13 @@ const sendNotificationToTopic = async (topic, title, body, data = {}) => {
             body
         },
         android: {
-            priority: 'high', // Delivery priority
+            priority: 'high',
             notification: {
                 channelId: 'default',
-                icon: 'ic_launcher', // References @mipmap/ic_launcher
-                color: '#4318FF', // Match your app theme (from theme.js)
+                icon: 'ic_launcher',
+                color: '#4318FF',
                 sound: 'default',
-                priority: 'high', // Visual priority (Heads-up)
+                priority: 'high',
                 clickAction: 'fcm.ACTION.DEFAULT',
                 visibility: 'public',
             }
@@ -62,17 +56,14 @@ const sendNotificationToTopic = async (topic, title, body, data = {}) => {
 
     try {
         const response = await admin.messaging().send(message);
-        console.log('Successfully sent message:', response);
+        return response;
     } catch (error) {
-        console.error('Error sending message:', error);
+        throw error;
     }
 };
 
 const sendNotificationToToken = async (fcmToken, title, body, data = {}) => {
-    if (!firebaseInitialized) {
-        console.error("Firebase not initialized. Cannot send notification.");
-        return;
-    }
+    if (!firebaseInitialized) return;
 
     const message = {
         token: fcmToken,
@@ -81,13 +72,13 @@ const sendNotificationToToken = async (fcmToken, title, body, data = {}) => {
             body
         },
         android: {
-            priority: 'high', // Delivery priority
+            priority: 'high',
             notification: {
                 channelId: 'default',
                 icon: 'ic_launcher',
                 color: '#4318FF',
                 sound: 'default',
-                priority: 'high', // Visual priority (Heads-up)
+                priority: 'high',
                 clickAction: 'fcm.ACTION.DEFAULT',
                 visibility: 'public',
             }
@@ -97,10 +88,8 @@ const sendNotificationToToken = async (fcmToken, title, body, data = {}) => {
 
     try {
         const response = await admin.messaging().send(message);
-        console.log('Successfully sent message to token:', response);
         return response;
     } catch (error) {
-        console.error('Error sending message to token:', error);
         throw error;
     }
 };
