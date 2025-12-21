@@ -4,11 +4,19 @@ const cors = require('cors');
 require('dotenv').config();
 
 const app = express();
+const fs = require('fs');
+const path = require('path');
+
+// Ensure uploads directory exists
+const uploadsDir = path.join(__dirname, 'uploads');
+if (!fs.existsSync(uploadsDir)) {
+    fs.mkdirSync(uploadsDir);
+}
 
 // Middleware
 app.use(cors());
-app.use(express.json()); // Body parser built-in to Express
-app.use('/uploads', express.static('uploads')); // Make uploads folder public
+app.use(express.json());
+app.use('/uploads', express.static(path.join(__dirname, 'uploads')));
 
 
 // Database Connection

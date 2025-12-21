@@ -144,7 +144,8 @@ router.get('/profile', auth, async (req, res) => {
         const user = await User.findById(req.user.id).select('-passwordHash');
         // Add full URL to avatar if it exists
         if (user.avatar && !user.avatar.startsWith('http')) {
-            user.avatar = `${req.protocol}://${req.get('host')}/${user.avatar}`;
+            const protocol = req.headers['x-forwarded-proto'] || req.protocol;
+            user.avatar = `${protocol}://${req.get('host')}/${user.avatar}`;
         }
         res.json(user);
     } catch (err) {
@@ -209,7 +210,8 @@ router.post('/profile/photo', auth, upload.single('avatar'), async (req, res) =>
         ).select('-passwordHash');
 
         // Return user with full avatar URL
-        const fullAvatarUrl = `${req.protocol}://${req.get('host')}/${avatarPath}`;
+        const protocol = req.headers['x-forwarded-proto'] || req.protocol;
+        const fullAvatarUrl = `${protocol}://${req.get('host')}/${avatarPath}`;
 
         res.json({
             msg: 'Photo uploaded successfully',
