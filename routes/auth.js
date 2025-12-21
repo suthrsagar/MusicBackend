@@ -268,19 +268,13 @@ router.get('/avatar/:filename', async (req, res) => {
 
         const downloadStream = bucket.openDownloadStreamByName(filename);
 
-        downloadStream.on('data', (chunk) => {
-            res.write(chunk);
-        });
-
-        downloadStream.on('error', () => {
+        // Use pipe for better performance and error handling
+        downloadStream.pipe(res).on('error', (err) => {
+            console.error('Stream error:', err);
             res.sendStatus(404);
         });
-
-        downloadStream.on('end', () => {
-            res.end();
-        });
     } catch (err) {
-        console.error(err);
+        console.error('Avatar fetch error:', err);
         res.status(500).send('Server Error');
     }
 });
