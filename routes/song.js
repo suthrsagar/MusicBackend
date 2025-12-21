@@ -153,36 +153,51 @@ router.get('/:id', async (req, res) => {
 router.get('/stream/:fileId', async (req, res) => {
     try {
         const fileId = new mongoose.Types.ObjectId(req.params.fileId);
-
-        // Connect to GridFS Bucket
         const db = mongoose.connection.db;
         const bucket = new mongoose.mongo.GridFSBucket(db, {
             bucketName: 'uploads'
         });
 
-        // Check if file exists (optional but good for error handling)
         const files = await bucket.find({ _id: fileId }).toArray();
         if (!files || files.length === 0) {
             return res.status(404).json({ msg: 'File not found' });
         }
 
-        // Stream file
-        const downloadStream = bucket.openDownloadStream(fileId);
+        const file = files[0];
+        const range = req.headers.range;
 
-        // Set basic headers (ideally extract mime type from db if saved)
-        res.set('Content-Type', 'audio/mpeg');
-        res.set('Accept-Ranges', 'bytes');
+        if (range) {
+            const parts = range.replace(/bytes=/, "").split("-");
+            const start = parseInt(parts[0], 10);
+            const end = parts[1] ? parseInt(parts[1], 10) : file.length - 1;
+            const chunksize = (end - start) + 1;
 
-        downloadStream.on('error', (err) => {
-            // Only send header if not sent
-            if (!res.headersSent) res.status(404).json({ msg: 'Error streaming file' });
-        });
+            res.writeHead(206, {
+                'Content-Range': `bytes ${start}-${end}/${file.length}`,
+                'Accept-Ranges': 'bytes',
+                'Content-Length': chunksize,
+                'Content-Type': file.contentType || 'audio/mpeg',
+            });
 
-        downloadStream.pipe(res);
+            const downloadStream = bucket.openDownloadStream(fileId, {
+                start,
+                end: end + 1 // GridFS end is exclusive
+            });
+
+            downloadStream.pipe(res);
+        } else {
+            res.writeHead(200, {
+                'Content-Length': file.length,
+                'Content-Type': file.contentType || 'audio/mpeg',
+                'Accept-Ranges': 'bytes',
+            });
+
+            bucket.openDownloadStream(fileId).pipe(res);
+        }
 
     } catch (err) {
-        console.error(err.message);
-        if (!res.headersSent) res.status(400).json({ msg: 'Invalid File ID' });
+        console.error('Stream error:', err.message);
+        if (!res.headersSent) res.status(400).json({ msg: 'Invalid File ID or streaming error' });
     }
 });
 
