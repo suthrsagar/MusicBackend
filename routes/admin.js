@@ -14,10 +14,15 @@ router.get('/stats', [auth, admin], async (req, res) => {
     try {
         const userCount = await User.countDocuments();
         const songCount = await Song.countDocuments();
-        // Online users logic would go here (e.g. socket.io), for now simpler stats
+
+        const onlineCount = await User.countDocuments({
+            currentSessionToken: { $ne: '' }
+        });
+
         res.json({
             users: userCount,
-            songs: songCount
+            songs: songCount,
+            online: onlineCount
         });
     } catch (err) {
         console.error(err.message);
@@ -48,15 +53,38 @@ router.put('/users/:id/ban', [auth, admin], async (req, res) => {
             return res.status(404).json({ msg: 'User not found' });
         }
 
-        // Prevent banning yourself
         if (user._id.toString() === req.user.id) {
             return res.status(400).json({ msg: 'Cannot ban yourself' });
         }
 
         user.isBanned = !user.isBanned;
+
+        if (user.isBanned) {
+            user.currentSessionToken = '';
+        }
+
         await user.save();
 
         res.json({ msg: user.isBanned ? 'User banned' : 'User unbanned', isBanned: user.isBanned });
+    } catch (err) {
+        console.error(err.message);
+        res.status(500).send('Server Error');
+    }
+});
+
+router.delete('/users/:id', [auth, admin], async (req, res) => {
+    try {
+        const user = await User.findById(req.params.id);
+        if (!user) return res.status(404).json({ msg: 'User not found' });
+
+        if (user._id.toString() === req.user.id) {
+            return res.status(400).json({ msg: 'Cannot delete yourself' });
+        }
+
+        await Song.deleteMany({ uploader: user._id });
+
+        await user.deleteOne();
+        res.json({ msg: 'User and their content deleted successfully' });
     } catch (err) {
         console.error(err.message);
         res.status(500).send('Server Error');
