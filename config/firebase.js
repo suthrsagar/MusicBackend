@@ -45,12 +45,15 @@ const sendNotificationToTopic = async (topic, title, body, data = {}) => {
             body
         },
         android: {
-            priority: 'high', // Critical: Keeps it 'working' even when app is closed
+            priority: 'high', // Delivery priority
             notification: {
                 channelId: 'default',
+                icon: 'ic_launcher', // References @mipmap/ic_launcher
+                color: '#4318FF', // Match your app theme (from theme.js)
                 sound: 'default',
-                priority: 'default', // Visual: 'default' displays in tray, but doesn't 'pop' on screen
+                priority: 'high', // Visual priority (Heads-up)
                 clickAction: 'fcm.ACTION.DEFAULT',
+                visibility: 'public',
             }
         },
         data: data,
@@ -78,12 +81,15 @@ const sendNotificationToToken = async (fcmToken, title, body, data = {}) => {
             body
         },
         android: {
-            priority: 'high', // Critical: Keeps it 'working' even when app is closed
+            priority: 'high', // Delivery priority
             notification: {
                 channelId: 'default',
+                icon: 'ic_launcher',
+                color: '#4318FF',
                 sound: 'default',
-                priority: 'default', // Visual: 'default' displays in tray, but doesn't 'pop' on screen
+                priority: 'high', // Visual priority (Heads-up)
                 clickAction: 'fcm.ACTION.DEFAULT',
+                visibility: 'public',
             }
         },
         data: data

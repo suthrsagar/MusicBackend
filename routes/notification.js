@@ -101,10 +101,10 @@ router.post('/broadcast', auth, adminAuth, async (req, res) => {
             await sendNotificationToTopic('all_users', title, body, data || {});
         }
 
-        res.json({ success: true, msg: 'Broadcast sent successfully' });
+        res.json({ success: true, msg: 'Notification sent successfully' });
     } catch (err) {
-        console.error('Broadcast Error:', err);
-        res.status(500).json({ msg: 'Failed to send broadcast', error: err.message });
+        console.error('Notification Error:', err);
+        res.status(500).json({ msg: 'Failed to send notification', error: err.message });
     }
 });
 
