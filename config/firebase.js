@@ -36,7 +36,8 @@ const sendNotificationToTopic = async (topic, title, body, data = {}) => {
     const message = {
         notification: {
             title,
-            body
+            body,
+            image: data.imageUrl || ''
         },
         android: {
             priority: 'high',
@@ -69,7 +70,8 @@ const sendNotificationToToken = async (fcmToken, title, body, data = {}) => {
         token: fcmToken,
         notification: {
             title,
-            body
+            body,
+            image: data.imageUrl || ''
         },
         android: {
             priority: 'high',

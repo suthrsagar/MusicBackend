@@ -27,15 +27,15 @@ router.get('/', async (req, res) => {
 });
 
 router.post('/', auth, adminAuth, async (req, res) => {
-    const { title, message } = req.body;
+    const { title, message, imageUrl } = req.body;
     if (!title || !message) {
         return res.status(400).json({ msg: 'Please enter all fields' });
     }
     try {
-        const newNotification = new Notification({ title, message });
+        const newNotification = new Notification({ title, message, imageUrl });
         const notification = await newNotification.save();
         if (sendNotificationToTopic) {
-            await sendNotificationToTopic('all_users', title, message);
+            await sendNotificationToTopic('all_users', title, message, { imageUrl });
         }
         res.json(notification);
     } catch (err) {
@@ -44,15 +44,15 @@ router.post('/', auth, adminAuth, async (req, res) => {
 });
 
 router.post('/broadcast', auth, adminAuth, async (req, res) => {
-    const { title, body, data } = req.body;
+    const { title, body, imageUrl, data } = req.body;
     if (!title || !body) {
         return res.status(400).json({ msg: 'Please provide title and body' });
     }
     try {
-        const newNotification = new Notification({ title, message: body });
+        const newNotification = new Notification({ title, message: body, imageUrl });
         await newNotification.save();
         if (sendNotificationToTopic) {
-            await sendNotificationToTopic('all_users', title, body, data || {});
+            await sendNotificationToTopic('all_users', title, body, { ...data, imageUrl });
         }
         res.json({ success: true, msg: 'Notification sent successfully' });
     } catch (err) {
