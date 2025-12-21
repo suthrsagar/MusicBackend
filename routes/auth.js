@@ -39,6 +39,7 @@ router.post('/register', async (req, res) => {
 });
 
 router.post('/login', async (req, res) => {
+    console.log('Login attempt:', req.body.email);
     const { email, password } = req.body;
     if (!email || !password) {
         return res.status(400).json({ msg: 'Please enter all fields' });
@@ -46,10 +47,12 @@ router.post('/login', async (req, res) => {
     try {
         let user = await User.findOne({ email });
         if (!user) {
+            console.log('Login failed: User not found');
             return res.status(400).json({ msg: 'Invalid Credentials' });
         }
         const isMatch = await user.comparePassword(password);
         if (!isMatch) {
+            console.log('Login failed: Password mismatch');
             return res.status(400).json({ msg: 'Invalid Credentials' });
         }
         const payload = { user: { id: user.id } };
@@ -57,16 +60,23 @@ router.post('/login', async (req, res) => {
             if (err) throw err;
             user.currentSessionToken = token;
             await user.save();
+            console.log('Login successful:', email);
             res.json({ token, user: { id: user.id, username: user.username, email: user.email, role: user.role } });
         });
     } catch (err) {
+        console.error('Login Error:', err);
         res.status(500).send('Server Error');
     }
 });
 
 router.get('/profile', auth, async (req, res) => {
+    console.log('Profile fetch for ID:', req.user.id);
     try {
         const user = await User.findById(req.user.id).select('-passwordHash');
+        if (!user) {
+            console.log('Profile fetch failed: User not found');
+            return res.status(404).json({ msg: 'User not found' });
+        }
         if (user.avatar && !user.avatar.startsWith('http')) {
             const protocol = req.headers['x-forwarded-proto'] || req.protocol;
             user.avatar = `${protocol}://${req.get('host')}/api/avatar/${user.avatar}`;
