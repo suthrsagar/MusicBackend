@@ -142,10 +142,9 @@ router.post('/login', async (req, res) => {
 router.get('/profile', auth, async (req, res) => {
     try {
         const user = await User.findById(req.user.id).select('-passwordHash');
-        // Add full URL to avatar if it exists
         if (user.avatar && !user.avatar.startsWith('http')) {
             const protocol = req.headers['x-forwarded-proto'] || req.protocol;
-            user.avatar = `${protocol}://${req.get('host')}/${user.avatar}`;
+            user.avatar = `${protocol}://${req.get('host')}/api/avatar/${user.avatar}`;
         }
         res.json(user);
     } catch (err) {
@@ -200,18 +199,16 @@ router.post('/profile/photo', auth, upload.single('avatar'), async (req, res) =>
             return res.status(400).json({ msg: 'No file uploaded' });
         }
 
-        const avatarPath = req.file.path.replace(/\\/g, "/"); // Fix windows paths
+        const avatarName = req.file.filename;
 
-        // Update user avatar in DB
         const user = await User.findByIdAndUpdate(
             req.user.id,
-            { avatar: avatarPath },
+            { avatar: avatarName },
             { new: true }
         ).select('-passwordHash');
 
-        // Return user with full avatar URL
         const protocol = req.headers['x-forwarded-proto'] || req.protocol;
-        const fullAvatarUrl = `${protocol}://${req.get('host')}/${avatarPath}`;
+        const fullAvatarUrl = `${protocol}://${req.get('host')}/api/avatar/${avatarName}`;
 
         res.json({
             msg: 'Photo uploaded successfully',
@@ -243,6 +240,28 @@ router.get('/user/email/:email', async (req, res) => {
         res.json(user);
     } catch (err) {
         console.error(err.message);
+        res.status(500).send('Server Error');
+    }
+});
+
+router.get('/avatar/:filename', async (req, res) => {
+    try {
+        const db = mongoose.connection.db;
+        const bucket = new mongoose.mongo.GridFSBucket(db, {
+            bucketName: 'avatars'
+        });
+
+        const filename = req.params.filename;
+        const files = await bucket.find({ filename }).toArray();
+
+        if (!files || files.length === 0) {
+            return res.status(404).json({ msg: 'No file found' });
+        }
+
+        res.set('Content-Type', files[0].contentType || 'image/jpeg');
+        const downloadStream = bucket.openDownloadStreamByName(filename);
+        downloadStream.pipe(res).on('error', () => res.sendStatus(404));
+    } catch (err) {
         res.status(500).send('Server Error');
     }
 });
