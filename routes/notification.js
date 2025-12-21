@@ -9,10 +9,12 @@ const adminAuth = async (req, res, next) => {
     try {
         const user = await User.findById(req.user.id);
         if (!user || user.role !== 'admin') {
+            console.log('Admin check failed for user:', req.user.id);
             return res.status(403).json({ msg: 'Access denied. Admin only.' });
         }
         next();
     } catch (err) {
+        console.error('AdminAuth error:', err);
         res.status(500).send('Server Error');
     }
 };
@@ -28,17 +30,27 @@ router.get('/', async (req, res) => {
 
 router.post('/', auth, adminAuth, async (req, res) => {
     const { title, message } = req.body;
+    console.log('Notification request received:', { title, message });
+
     if (!title || !message) {
         return res.status(400).json({ msg: 'Please enter all fields' });
     }
+
     try {
         const newNotification = new Notification({ title, message });
         const notification = await newNotification.save();
+
         if (sendNotificationToTopic) {
-            await sendNotificationToTopic('all_users', title, message);
+            console.log('Sending message to topic all_users...');
+            const result = await sendNotificationToTopic('all_users', title, message);
+            console.log('Firebase result:', result);
+        } else {
+            console.error('sendNotificationToTopic function missing!');
         }
+
         res.json(notification);
     } catch (err) {
+        console.error('Notification error:', err);
         res.status(500).json({ msg: 'Server Error', error: err.message });
     }
 });
