@@ -35,7 +35,9 @@ router.post('/', auth, adminAuth, async (req, res) => {
         const newNotification = new Notification({ title, message, imageUrl });
         const notification = await newNotification.save();
         if (sendNotificationToTopic) {
-            await sendNotificationToTopic('all_users', title, message, { imageUrl });
+            // Only add imageUrl to data if it exists
+            const dataPayload = imageUrl ? { imageUrl } : {};
+            await sendNotificationToTopic('all_users', title, message, dataPayload);
         }
         res.json(notification);
     } catch (err) {
