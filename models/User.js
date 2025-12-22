@@ -62,6 +62,10 @@ const UserSchema = new mongoose.Schema({
     currentSessionToken: {
         type: String,
         default: ''
+    },
+    isOnline: {
+        type: Boolean,
+        default: false
     }
 });
 

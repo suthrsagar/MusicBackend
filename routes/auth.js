@@ -59,6 +59,7 @@ router.post('/login', async (req, res) => {
         jwt.sign(payload, process.env.JWT_SECRET, { expiresIn: 360000 }, async (err, token) => {
             if (err) throw err;
             user.currentSessionToken = token;
+            user.isOnline = true;
             await user.save();
             console.log('Login successful:', email);
             res.json({ token, user: { id: user.id, username: user.username, email: user.email, role: user.role } });
@@ -128,6 +129,57 @@ router.get('/avatar/:filename', async (req, res) => {
         const downloadStream = bucket.openDownloadStreamByName(filename);
         downloadStream.pipe(res).on('error', () => res.sendStatus(404));
     } catch (err) {
+        res.status(500).send('Server Error');
+    }
+});
+
+router.post('/status/online', auth, async (req, res) => {
+    try {
+        await User.findByIdAndUpdate(req.user.id, { isOnline: true });
+        res.json({ msg: 'Status set to online' });
+    } catch (err) {
+        res.status(500).send('Server Error');
+    }
+});
+
+router.post('/status/offline', auth, async (req, res) => {
+    try {
+        await User.findByIdAndUpdate(req.user.id, { isOnline: false });
+        res.json({ msg: 'Status set to offline' });
+    } catch (err) {
+        res.status(500).send('Server Error');
+    }
+});
+
+// @route   POST /api/auth/change-password
+// @desc    Change user password
+// @access  Private
+router.post('/change-password', auth, async (req, res) => {
+    const { oldPassword, newPassword } = req.body;
+
+    if (!oldPassword || !newPassword) {
+        return res.status(400).json({ msg: 'Please enter all fields' });
+    }
+
+    if (newPassword.length < 6) {
+        return res.status(400).json({ msg: 'New password must be at least 6 characters' });
+    }
+
+    try {
+        const user = await User.findById(req.user.id);
+        const isMatch = await user.comparePassword(oldPassword);
+
+        if (!isMatch) {
+            return res.status(400).json({ msg: 'Invalid current password' });
+        }
+
+        // Hash new password - User model hook handles hashing if passwordHash is modified
+        user.passwordHash = newPassword;
+        await user.save();
+
+        res.json({ msg: 'Password updated successfully' });
+    } catch (err) {
+        console.error(err);
         res.status(500).send('Server Error');
     }
 });

@@ -39,6 +39,12 @@ if (fs.existsSync(serviceAccountPath)) {
 const sendNotificationToTopic = async (topic, title, body, data = {}) => {
     if (!firebaseInitialized) return;
 
+    // Ensure all data values are strings
+    const stringData = {};
+    for (const key in data) {
+        if (data[key]) stringData[key] = String(data[key]);
+    }
+
     const message = {
         notification: {
             title,
@@ -57,7 +63,7 @@ const sendNotificationToTopic = async (topic, title, body, data = {}) => {
                 visibility: 'public',
             }
         },
-        data: data,
+        data: stringData,
         topic: topic
     };
 
@@ -71,6 +77,12 @@ const sendNotificationToTopic = async (topic, title, body, data = {}) => {
 
 const sendNotificationToToken = async (fcmToken, title, body, data = {}) => {
     if (!firebaseInitialized) return;
+
+    // Ensure all data values are strings
+    const stringData = {};
+    for (const key in data) {
+        if (data[key]) stringData[key] = String(data[key]);
+    }
 
     const message = {
         token: fcmToken,
@@ -91,7 +103,7 @@ const sendNotificationToToken = async (fcmToken, title, body, data = {}) => {
                 visibility: 'public',
             }
         },
-        data: data
+        data: stringData
     };
 
     try {

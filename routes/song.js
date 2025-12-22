@@ -6,6 +6,8 @@ const { GridFsStorage } = require('multer-gridfs-storage');
 const path = require('path');
 const auth = require('../middleware/authMiddleware');
 const Song = require('../models/Song');
+const User = require('../models/User'); // Import User model
+const { sendNotificationToTopic } = require('../config/firebase'); // Import Notification service
 require('dotenv').config();
 
 // Database Connection URI
@@ -56,8 +58,30 @@ router.post('/upload', auth, upload.single('song'), async (req, res) => {
             uploader: req.user.id
         });
 
+        // Check if uploader is admin
+        const uploader = await User.findById(req.user.id);
+        const isAdmin = uploader && uploader.role === 'admin';
+
+        // Admin uploads are automatically approved
+        if (isAdmin) {
+            newSong.status = 'approved';
+        }
+
         // Save metadata to MongoDB
         const savedSong = await newSong.save();
+
+        if (isAdmin) {
+            // Send notification for approved song
+            try {
+                if (sendNotificationToTopic) {
+                    await sendNotificationToTopic(
+                        'all_users',
+                        'New Song Alert! 🎵',
+                        `${title} by ${artist} is now available in the app! Listen now!`
+                    );
+                }
+            } catch (e) { console.error('Notification Error', e); }
+        }
 
         // Respond with success
         res.status(201).json({
