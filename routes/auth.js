@@ -166,16 +166,26 @@ router.post('/change-password', auth, async (req, res) => {
     }
 
     try {
+        console.log(`Password change attempt for user: ${req.user.id}`);
+        // Ensure we find the user
         const user = await User.findById(req.user.id);
+        if (!user) {
+            console.log('User not found in DB');
+            return res.status(404).json({ msg: 'User not found' });
+        }
+
         const isMatch = await user.comparePassword(oldPassword);
+        console.log(`Password match result: ${isMatch}`);
 
         if (!isMatch) {
             return res.status(400).json({ msg: 'Invalid current password' });
         }
 
-        // Hash new password - User model hook handles hashing if passwordHash is modified
-        user.passwordHash = newPassword;
-        await user.save();
+        // Hash new password manually to ensure reliability
+        const salt = await bcrypt.genSalt(10);
+        const hashedPassword = await bcrypt.hash(newPassword, salt);
+
+        await User.findByIdAndUpdate(req.user.id, { passwordHash: hashedPassword });
 
         res.json({ msg: 'Password updated successfully' });
     } catch (err) {

@@ -19,6 +19,10 @@ const songSchema = new mongoose.Schema({
         type: mongoose.Schema.Types.ObjectId, // GridFS file ID
         required: true
     },
+    coverImage: {
+        type: String, // URL to cover image
+        default: ''
+    },
     uploader: {
         type: mongoose.Schema.Types.ObjectId,
         ref: 'User',

@@ -13,48 +13,67 @@ require('dotenv').config();
 // Database Connection URI
 const MONGO_URI = process.env.MONGO_URI || 'mongodb://localhost:27017/auth_db';
 
-// Create GridFS storage engine
 const storage = new GridFsStorage({
     url: MONGO_URI,
     file: (req, file) => {
         return new Promise((resolve, reject) => {
-            // Check for audio MIME types or extensions
-            const isAudio = file.mimetype.startsWith('audio/') || file.originalname.match(/\.(mp3|wav|m4a|ogg)$/);
-
-            if (!isAudio) {
-                return reject(new Error('Not an audio file! Please upload an MP3/audio file.'));
+            if (file.fieldname === 'song') {
+                const isAudio = file.mimetype.startsWith('audio/') || file.originalname.match(/\.(mp3|wav|m4a|ogg)$/);
+                if (!isAudio) {
+                    return reject(new Error('Not an audio file! Please upload an MP3/audio file.'));
+                }
+                const filename = 'song-' + Date.now() + path.extname(file.originalname);
+                const fileInfo = {
+                    filename: filename,
+                    bucketName: 'uploads'
+                };
+                resolve(fileInfo);
+            } else if (file.fieldname === 'coverImage') {
+                const isImage = file.mimetype.startsWith('image/');
+                if (!isImage) {
+                    return reject(new Error('Not an image file!'));
+                }
+                const filename = 'cover-' + Date.now() + path.extname(file.originalname);
+                const fileInfo = {
+                    filename: filename,
+                    bucketName: 'covers'
+                };
+                resolve(fileInfo);
+            } else {
+                reject(new Error('Unknown field'));
             }
-
-            const filename = 'song-' + Date.now() + path.extname(file.originalname);
-            const fileInfo = {
-                filename: filename,
-                bucketName: 'uploads' // The GridFS bucket name (uploads.files, uploads.chunks)
-            };
-            resolve(fileInfo);
         });
     }
 });
 
 const upload = multer({ storage });
 
-// @route   POST /api/song/upload
-// @desc    Upload an MP3 song with metadata
-// @access  Private
-router.post('/upload', auth, upload.single('song'), async (req, res) => {
+router.post('/upload', auth, upload.fields([{ name: 'song', maxCount: 1 }, { name: 'coverImage', maxCount: 1 }]), async (req, res) => {
     try {
-        if (!req.file) {
-            return res.status(400).json({ msg: 'Please upload a file' });
+        if (!req.files || !req.files['song']) {
+            return res.status(400).json({ msg: 'Please upload a song file' });
         }
 
         const { title, artist, album, genre } = req.body;
+
+        const songFile = req.files['song'][0];
+        const coverFile = req.files['coverImage'] ? req.files['coverImage'][0] : null;
+
+        // Construct cover image URL if uploaded
+        let coverImageUrl = '';
+        if (coverFile) {
+            const protocol = req.headers['x-forwarded-proto'] || req.protocol;
+            coverImageUrl = `${protocol}://${req.get('host')}/api/song/cover/${coverFile.filename}`;
+        }
 
         // Create new song document
         const newSong = new Song({
             title,
             artist,
             album,
-            genre,
-            fileId: req.file.id, // GridFS file ID
+            genre, // Optional now
+            fileId: songFile.id, // GridFS file ID
+            coverImage: coverImageUrl,
             uploader: req.user.id
         });
 
@@ -67,11 +86,9 @@ router.post('/upload', auth, upload.single('song'), async (req, res) => {
             newSong.status = 'approved';
         }
 
-        // Save metadata to MongoDB
         const savedSong = await newSong.save();
 
         if (isAdmin) {
-            // Send notification for approved song
             try {
                 if (sendNotificationToTopic) {
                     await sendNotificationToTopic(
@@ -81,13 +98,23 @@ router.post('/upload', auth, upload.single('song'), async (req, res) => {
                     );
                 }
             } catch (e) { console.error('Notification Error', e); }
+        } else {
+            try {
+                if (sendNotificationToTopic) {
+                    await sendNotificationToTopic(
+                        'admin_notifications',
+                        'New Song Request 📝',
+                        `User has uploaded "${title}". Please review and approve.`,
+                        { songId: savedSong._id.toString() }
+                    );
+                }
+            } catch (e) { console.error('Admin Notification Error', e); }
         }
 
-        // Respond with success
         res.status(201).json({
             msg: 'Song uploaded successfully',
             metadata: savedSong,
-            fileId: req.file.id
+            fileId: songFile.id
         });
 
     } catch (err) {
@@ -96,12 +123,8 @@ router.post('/upload', auth, upload.single('song'), async (req, res) => {
     }
 });
 
-// @route   GET /api/song
-// @desc    Get all APPROVED songs
-// @access  Public
 router.get('/', async (req, res) => {
     try {
-        // Only return approved songs to public
         const songs = await Song.find({ status: 'approved' }).sort({ uploadDate: -1 });
         res.json(songs);
     } catch (err) {
@@ -110,15 +133,11 @@ router.get('/', async (req, res) => {
     }
 });
 
-// @route   PUT /api/song/like/:id
-// @desc    Like or Unlike a song
-// @access  Private
 router.put('/like/:id', auth, async (req, res) => {
     try {
         const song = await Song.findById(req.params.id);
         if (!song) return res.status(404).json({ msg: 'Song not found' });
 
-        // Check if already liked
         if (song.likes.includes(req.user.id)) {
             // Unlike: Remove user id from likes array
             song.likes = song.likes.filter(userId => userId.toString() !== req.user.id);
@@ -171,9 +190,6 @@ router.get('/:id', async (req, res) => {
     }
 });
 
-// @route   GET /api/song/stream/:fileId
-// @desc    Stream song by GridFS fileId
-// @access  Public
 router.get('/stream/:fileId', async (req, res) => {
     try {
         const fileId = new mongoose.Types.ObjectId(req.params.fileId);
@@ -205,7 +221,7 @@ router.get('/stream/:fileId', async (req, res) => {
 
             const downloadStream = bucket.openDownloadStream(fileId, {
                 start,
-                end: end + 1 // GridFS end is exclusive
+                end: end + 1
             });
 
             downloadStream.pipe(res);
@@ -226,3 +242,25 @@ router.get('/stream/:fileId', async (req, res) => {
 });
 
 module.exports = router;
+
+router.get('/cover/:filename', async (req, res) => {
+    try {
+        const db = mongoose.connection.db;
+        const bucket = new mongoose.mongo.GridFSBucket(db, {
+            bucketName: 'covers'
+        });
+        const filename = req.params.filename;
+        const files = await bucket.find({ filename }).toArray();
+        if (!files || files.length === 0) {
+            return res.status(404).json({ msg: 'No cover found' });
+        }
+
+        const file = files[0];
+        res.set('Content-Type', file.contentType || 'image/jpeg');
+        const downloadStream = bucket.openDownloadStreamByName(filename);
+        downloadStream.pipe(res).on('error', () => res.sendStatus(404));
+    } catch (err) {
+        console.error(err);
+        res.status(500).send('Server Error');
+    }
+});

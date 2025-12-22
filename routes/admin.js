@@ -6,6 +6,25 @@ const Song = require('../models/Song');
 const auth = require('../middleware/authMiddleware');
 const admin = require('../middleware/adminMiddleware');
 const { sendNotificationToTopic } = require('../config/firebase');
+const multer = require('multer');
+const { GridFsStorage } = require('multer-gridfs-storage');
+const path = require('path');
+require('dotenv').config();
+
+const MONGO_URI = process.env.MONGO_URI || 'mongodb://localhost:27017/auth_db';
+const storage = new GridFsStorage({
+    url: MONGO_URI,
+    file: (req, file) => {
+        if (file.fieldname === 'coverImage') {
+            return {
+                filename: 'cover-' + Date.now() + path.extname(file.originalname),
+                bucketName: 'covers'
+            };
+        }
+        return null;
+    }
+});
+const upload = multer({ storage });
 
 router.get('/stats', [auth, admin], async (req, res) => {
     try {
@@ -101,7 +120,15 @@ router.put('/songs/:id/approve', [auth, admin], async (req, res) => {
         await song.save();
 
         if (sendNotificationToTopic) {
-            sendNotificationToTopic('all_users', 'New Song Added!', `Check out ${song.title} by ${song.artist}`, { songId: song._id.toString() });
+            const songImage = song.coverImage || '';
+            const dataToPush = songImage ? { imageUrl: songImage } : {};
+
+            await sendNotificationToTopic(
+                'all_users',
+                'New Song Alert! 🎵',
+                `${song.title} by ${song.artist} is now available in the app! Listen now!`,
+                { ...dataToPush, songId: song._id.toString() }
+            );
         }
 
         res.json({ msg: 'Song approved', song });
@@ -111,7 +138,7 @@ router.put('/songs/:id/approve', [auth, admin], async (req, res) => {
     }
 });
 
-router.put('/songs/:id', [auth, admin], async (req, res) => {
+router.put('/songs/:id', [auth, admin, upload.single('coverImage')], async (req, res) => {
     try {
         const { title, artist, album, genre } = req.body;
         const song = await Song.findById(req.params.id);
@@ -124,6 +151,12 @@ router.put('/songs/:id', [auth, admin], async (req, res) => {
         if (artist) song.artist = artist;
         if (album) song.album = album;
         if (genre) song.genre = genre;
+
+        if (req.file) {
+            const protocol = req.headers['x-forwarded-proto'] || req.protocol;
+            const coverImageUrl = `${protocol}://${req.get('host')}/api/song/cover/${req.file.filename}`;
+            song.coverImage = coverImageUrl;
+        }
 
         await song.save();
         res.json({ msg: 'Song updated successfully', song });
@@ -141,8 +174,6 @@ router.delete('/songs/:id', [auth, admin], async (req, res) => {
         }
 
         const fileId = song.fileId;
-
-
         const db = mongoose.connection.db;
         const bucket = new mongoose.mongo.GridFSBucket(db, { bucketName: 'uploads' });
 
@@ -151,8 +182,6 @@ router.delete('/songs/:id', [auth, admin], async (req, res) => {
         } catch (e) {
             console.warn('File not found in GridFS, deleting metadata only');
         }
-
-
 
         await song.deleteOne();
 
