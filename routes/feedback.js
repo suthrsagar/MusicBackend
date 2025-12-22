@@ -16,6 +16,14 @@ router.post('/', async (req, res) => {
             if (user) username = user.username;
         }
 
+        // Check if user has already rated
+        if (type === 'rate' && userId) {
+            const existingRating = await Feedback.findOne({ userId, type: 'rate' });
+            if (existingRating) {
+                return res.status(400).json({ msg: 'You have already rated the app!' });
+            }
+        }
+
         const newFeedback = new Feedback({
             userId,
             username,
@@ -27,6 +35,17 @@ router.post('/', async (req, res) => {
         await newFeedback.save();
         res.json({ msg: 'Thank you for your feedback!' });
 
+    } catch (err) {
+        console.error(err.message);
+        res.status(500).send('Server Error');
+    }
+});
+
+// GET /api/feedback/check-rating - Check if current user has rated
+router.get('/check-rating', auth, async (req, res) => {
+    try {
+        const existingRating = await Feedback.findOne({ userId: req.user.id, type: 'rate' });
+        res.json({ hasRated: !!existingRating });
     } catch (err) {
         console.error(err.message);
         res.status(500).send('Server Error');
