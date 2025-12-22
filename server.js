@@ -49,6 +49,7 @@ app.use('/api/song', require('./routes/song'));
 app.use('/api/admin', require('./routes/admin'));
 app.use('/api/notifications', require('./routes/notification'));
 app.use('/api/feedback', require('./routes/feedback'));
+app.use('/api/support', require('./routes/support'));
 app.use('/api/payment', require('./routes/payment'));
 app.use('/api/playlist', require('./routes/playlist'));
 app.use('/api/monetization', require('./routes/monetization'));
