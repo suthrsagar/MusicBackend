@@ -48,12 +48,12 @@ router.post('/login', async (req, res) => {
         let user = await User.findOne({ email });
         if (!user) {
             console.log('Login failed: User not found');
-            return res.status(400).json({ msg: 'Invalid Credentials' });
+            return res.status(400).json({ msg: 'Wrong Email' });
         }
         const isMatch = await user.comparePassword(password);
         if (!isMatch) {
             console.log('Login failed: Password mismatch');
-            return res.status(400).json({ msg: 'Invalid Credentials' });
+            return res.status(400).json({ msg: 'Invalid Password' });
         }
         const payload = { user: { id: user.id } };
         jwt.sign(payload, process.env.JWT_SECRET, { expiresIn: 360000 }, async (err, token) => {
