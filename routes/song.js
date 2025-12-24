@@ -62,8 +62,10 @@ router.post('/upload', auth, upload.fields([{ name: 'song', maxCount: 1 }, { nam
         // Construct cover image URL if uploaded
         let coverImageUrl = '';
         if (coverFile) {
-            const protocol = req.headers['x-forwarded-proto'] || req.protocol;
-            coverImageUrl = `${protocol}://${req.get('host')}/api/song/cover/${coverFile.filename}`;
+            // Use production URL to ensure images are accessible from app even if uploaded via local backend
+            // (Since files are stored in shared MongoDB Atlas/GridFS)
+            const baseUrl = 'https://musicbackend-7i18.onrender.com';
+            coverImageUrl = `${baseUrl}/api/song/cover/${coverFile.filename}`;
         }
 
         // Create new song document
