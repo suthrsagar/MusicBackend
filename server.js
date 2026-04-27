@@ -58,7 +58,7 @@ app.use('/api/analytics', require('./routes/analytics'));
 
 // Simple root route
 app.get('/', (req, res) => {
-    res.send('API is running...');
+    res.send('Update API is running...');
 });
 
 // Start Server
